@@ -13,16 +13,29 @@ class AsyncWebCrawler:
 
     async def crawl(self):
         async with aiohttp.ClientSession() as session:
+            # Initialize the semaphore with a specific concurrency limit, e.g., 10.
+            sem = asyncio.Semaphore(10)
+            tasks = []
             while self.urls_to_visit:
                 url = self.urls_to_visit.pop()
                 if url not in self.visited_urls and urlparse(url).netloc.lower() == self.base_domain:
-                    await self.fetch(session, url)
-                if not self.urls_to_visit:
-                    print("No more pages to visit.")
-                    break
+                    # Pass the semaphore along with other necessary parameters.
+                    task = asyncio.create_task(self.bounded_fetch(sem, session, url))
+                    tasks.append(task)
+                if len(tasks) >= 10 or not self.urls_to_visit:
+                    await asyncio.gather(*tasks)
+                    tasks = []
+            if tasks:  # Ensure no task is left behind.
+                await asyncio.gather(*tasks)
+
+    async def bounded_fetch(self, sem, session, url):
+        # Make sure to use the semaphore within an async with statement.
+        async with sem:
+            await self.fetch(session, url)
 
     async def fetch(self, session, url):
         try:
+            # print("start: ", url)
             # Define a timeout for the request; adjust the seconds as needed
             timeout = ClientTimeout(total=10)  # 10 seconds timeout for the whole operation
 
@@ -53,6 +66,7 @@ class AsyncWebCrawler:
             if (urlparse(full_url).netloc.lower() == self.base_domain and
                     full_url not in self.visited_urls):
                 self.urls_to_visit.add(full_url)
+        # print("End: ", base_url)
 
     def normalize_url(self, url):
         parsed_url = urlparse(url)
@@ -69,6 +83,6 @@ class AsyncWebCrawler:
 
 
 if __name__ == "__main__":
-    # crawler = AsyncWebCrawler("https://monzo.com/")
-    crawler = AsyncWebCrawler("https://books.toscrape.com/")
+    crawler = AsyncWebCrawler("https://monzo.com/")
+    # crawler = AsyncWebCrawler("https://books.toscrape.com/")
     asyncio.run(crawler.crawl())
