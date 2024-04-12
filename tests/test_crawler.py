@@ -1,4 +1,4 @@
-from crawler import AsyncWebCrawler, normalize_url
+from crawler.crawler import AsyncWebCrawler, normalize_url
 from unittest.mock import MagicMock
 import pytest
 from aiohttp import ClientSession
@@ -25,8 +25,6 @@ def test_crawler_initialization():
 
 @pytest.mark.asyncio
 async def test_fetch_html_content():
-    from crawler import AsyncWebCrawler  # Import your crawler
-
     # Create the crawler instance
     crawler = AsyncWebCrawler("https://example.com")
     url = "https://example.com/page"
