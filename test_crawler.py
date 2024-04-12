@@ -91,3 +91,22 @@ async def test_fetch_with_network_errors_and_retries():
                 await crawler.fetch(session, url)
                 assert mock_log_warning.call_count == 3  # Assuming 3 retries
                 assert mock_sleep.await_count == 2  # Sleep between retries
+
+@pytest.mark.asyncio
+async def test_parse_and_enqueue_links():
+    crawler = AsyncWebCrawler("https://example.com")
+    base_url = "https://example.com/"
+    html_content = "<html><a href='page1.html'>Page 1</a><a href='https://example.com/page2.html'>Page 2</a></html>"
+
+    # Clear the queue before the test
+    while not crawler.urls_to_visit.empty():
+        await crawler.urls_to_visit.get()
+
+    # Use actual session in the test
+    async with ClientSession() as session:
+        await crawler.parse_links(session, base_url, html_content)
+        first_url = await crawler.urls_to_visit.get()
+        second_url = await crawler.urls_to_visit.get()
+        assert first_url == "https://example.com/page1.html"
+        assert second_url == "https://example.com/page2.html"
+        assert crawler.urls_to_visit.empty()
