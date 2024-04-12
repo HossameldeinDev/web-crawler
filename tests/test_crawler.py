@@ -1,18 +1,10 @@
-from crawler.crawler import AsyncWebCrawler, normalize_url
-from unittest.mock import MagicMock
+import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 from aiohttp import ClientSession
-from unittest.mock import patch, AsyncMock
-import asyncio
 
-
-@pytest.mark.parametrize("input_url,expected", [
-    ("https://example.com", "https://example.com/"),
-    ("http://example.com/some/page", "https://example.com/some/page"),
-    ("https://EXAMPLE.COM/TEST?query=string", "https://example.com/TEST"),
-])
-def test_normalize_url(input_url, expected):
-    assert normalize_url(input_url) == expected
+from crawler.crawler import AsyncWebCrawler
 
 
 def test_crawler_initialization():
@@ -32,8 +24,10 @@ async def test_fetch_html_content():
     # Mock response setup
     mock_response = AsyncMock()
     mock_response.raise_for_status = AsyncMock()
-    mock_response.headers = {'Content-Type': 'text/html; charset=utf-8'}
-    mock_response.text = AsyncMock(return_value="<html><body><a href='page2.html'>Link</a></body></html>")
+    mock_response.headers = {"Content-Type": "text/html; charset=utf-8"}
+    mock_response.text = AsyncMock(
+        return_value="<html><body><a href='page2.html'>Link</a></body></html>",
+    )
 
     # Mock context manager for the mock response
     mock_context_manager = MagicMock()
@@ -41,11 +35,18 @@ async def test_fetch_html_content():
     mock_context_manager.__aexit__ = AsyncMock(return_value=None)
 
     # Patch the ClientSession.get to return our mock context manager
-    with patch('aiohttp.ClientSession.get', return_value=mock_context_manager):
+    with patch("aiohttp.ClientSession.get", return_value=mock_context_manager):
         # Create a client session and pass it along with the URL to fetch method
         async with ClientSession() as session:
-            with patch.object(crawler, 'parse_links', new_callable=AsyncMock) as mock_parse_links:
-                await crawler.fetch(session, url)  # Corrected to pass both session and url
+            with patch.object(
+                crawler,
+                "parse_links",
+                new_callable=AsyncMock,
+            ) as mock_parse_links:
+                await crawler.fetch(
+                    session,
+                    url,
+                )  # Corrected to pass both session and url
                 mock_response.text.assert_called_once()
                 mock_parse_links.assert_called_once()
 
@@ -58,7 +59,7 @@ async def test_fetch_non_html_content():
     # Mock response to simulate non-HTML content
     mock_response = AsyncMock()
     mock_response.raise_for_status = AsyncMock()
-    mock_response.headers = {'Content-Type': 'application/json'}
+    mock_response.headers = {"Content-Type": "application/json"}
     mock_response.text = AsyncMock(return_value='{"key": "value"}')
 
     # Set up context manager mock
@@ -67,11 +68,13 @@ async def test_fetch_non_html_content():
     mock_context_manager.__aexit__ = AsyncMock(return_value=None)
 
     # Mock ClientSession.get
-    with patch('aiohttp.ClientSession.get', return_value=mock_context_manager):
+    with patch("aiohttp.ClientSession.get", return_value=mock_context_manager):
         async with ClientSession() as session:
-            with patch('logging.info') as mock_log:
+            with patch("logging.info") as mock_log:
                 await crawler.fetch(session, url)
-                mock_log.assert_called_with("Skipping non-HTML content: https://example.com/data")
+                mock_log.assert_called_with(
+                    "Skipping non-HTML content: https://example.com/data",
+                )
 
 
 @pytest.mark.asyncio
@@ -83,13 +86,17 @@ async def test_fetch_with_network_errors_and_retries():
     mock_response = AsyncMock(side_effect=Exception("Connection error"))
 
     mock_context_manager = MagicMock()
-    mock_context_manager.__aenter__ = AsyncMock(side_effect=Exception("Connection error"))
+    mock_context_manager.__aenter__ = AsyncMock(
+        side_effect=Exception("Connection error"),
+    )
     mock_context_manager.__aexit__ = AsyncMock(return_value=None)
 
-    with patch('aiohttp.ClientSession.get', return_value=mock_context_manager):
+    with patch("aiohttp.ClientSession.get", return_value=mock_context_manager):
         async with ClientSession() as session:
-            with patch('logging.warning') as mock_log_warning, patch('asyncio.sleep',
-                                                                     new_callable=AsyncMock) as mock_sleep:
+            with patch("logging.warning") as mock_log_warning, patch(
+                "asyncio.sleep",
+                new_callable=AsyncMock,
+            ) as mock_sleep:
                 await crawler.fetch(session, url)
                 assert mock_log_warning.call_count == 3  # Assuming 3 retries
                 assert mock_sleep.await_count == 2  # Sleep between retries

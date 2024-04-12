@@ -1,6 +1,8 @@
-from crawler.crawler import AsyncWebCrawler
 import asyncio
 import logging
+
+from crawler.crawler import AsyncWebCrawler
+
 if __name__ == "__main__":
     import time
 

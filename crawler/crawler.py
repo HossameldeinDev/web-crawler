@@ -1,24 +1,19 @@
 import asyncio
-import aiohttp
 import logging
-from urllib.parse import urlparse, urljoin, urlunparse
+from urllib.parse import urljoin, urlparse
+
+import aiohttp
 from aiohttp import ClientTimeout
 
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+from crawler.utils import normalize_url
 
-
-def normalize_url(url):
-    parsed_url = urlparse(url)
-    scheme = "https"
-    netloc = parsed_url.netloc.lower()
-    path = parsed_url.path if parsed_url.path else "/"
-    normalized_url = urlunparse((scheme, netloc, path, '', '', ''))
-    return normalized_url
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
 
 
 class AsyncWebCrawler:
-
     def __init__(self, base_url, concurrency=10):
         self.base_url = normalize_url(base_url)
         self.base_domain = urlparse(base_url).netloc.lower()
@@ -55,14 +50,18 @@ class AsyncWebCrawler:
         for attempt in range(retries):
             try:
                 timeout = ClientTimeout(total=10)
-                headers = {'User-Agent': 'MyCrawler/1.0'}
-                async with session.get(url,
-                                       allow_redirects=True,
-                                       headers=headers,
-                                       timeout=timeout) as response:
+                headers = {"User-Agent": "MyCrawler/1.0"}
+                async with session.get(
+                    url,
+                    allow_redirects=True,
+                    headers=headers,
+                    timeout=timeout,
+                ) as response:
                     response.raise_for_status()
-                    if 'text/html' not in response.headers.get('Content-Type',
-                                                               '').lower():
+                    if (
+                        "text/html"
+                        not in response.headers.get("Content-Type", "").lower()
+                    ):
                         logging.info(f"Skipping non-HTML content: {url}")
                         return
                     logging.info(f"Visiting: {url}")
@@ -71,15 +70,16 @@ class AsyncWebCrawler:
             except Exception as e:
                 logging.warning(f"Attempt {attempt + 1} failed for {url}: {e}")
                 if attempt < retries - 1:
-                    await asyncio.sleep(2 ** attempt)
+                    await asyncio.sleep(2**attempt)
                 else:
                     logging.error(f"Failed to fetch {url} after {retries} attempts")
 
     async def parse_links(self, session, base_url, html):
         from bs4 import BeautifulSoup
-        soup = BeautifulSoup(html, 'html.parser')
-        for link in soup.find_all('a', href=True):
-            full_url = normalize_url(urljoin(base_url, link['href']))
+
+        soup = BeautifulSoup(html, "html.parser")
+        for link in soup.find_all("a", href=True):
+            full_url = normalize_url(urljoin(base_url, link["href"]))
             if urlparse(full_url).netloc.lower() == self.base_domain:
                 async with self.lock:  # Prevent adding duplicates concurrently
                     if full_url not in self.visited_urls:
