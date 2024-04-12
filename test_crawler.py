@@ -1,8 +1,9 @@
 from crawler import AsyncWebCrawler, normalize_url
-from unittest.mock import AsyncMock
+from unittest.mock import MagicMock
 import pytest
-from unittest.mock import patch, MagicMock
 from aiohttp import ClientSession
+from unittest.mock import patch, AsyncMock
+import asyncio
 
 
 @pytest.mark.parametrize("input_url,expected", [
@@ -50,6 +51,7 @@ async def test_fetch_html_content():
                 mock_response.text.assert_called_once()
                 mock_parse_links.assert_called_once()
 
+
 @pytest.mark.asyncio
 async def test_fetch_non_html_content():
     crawler = AsyncWebCrawler("https://example.com")
@@ -73,6 +75,7 @@ async def test_fetch_non_html_content():
                 await crawler.fetch(session, url)
                 mock_log.assert_called_with("Skipping non-HTML content: https://example.com/data")
 
+
 @pytest.mark.asyncio
 async def test_fetch_with_network_errors_and_retries():
     crawler = AsyncWebCrawler("https://example.com")
@@ -87,10 +90,12 @@ async def test_fetch_with_network_errors_and_retries():
 
     with patch('aiohttp.ClientSession.get', return_value=mock_context_manager):
         async with ClientSession() as session:
-            with patch('logging.warning') as mock_log_warning, patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
+            with patch('logging.warning') as mock_log_warning, patch('asyncio.sleep',
+                                                                     new_callable=AsyncMock) as mock_sleep:
                 await crawler.fetch(session, url)
                 assert mock_log_warning.call_count == 3  # Assuming 3 retries
                 assert mock_sleep.await_count == 2  # Sleep between retries
+
 
 @pytest.mark.asyncio
 async def test_parse_and_enqueue_links():
@@ -110,3 +115,33 @@ async def test_parse_and_enqueue_links():
         assert first_url == "https://example.com/page1.html"
         assert second_url == "https://example.com/page2.html"
         assert crawler.urls_to_visit.empty()
+
+
+@pytest.mark.asyncio
+async def test_crawl_execution():
+    crawler = AsyncWebCrawler("https://example.com")
+
+    # Prepopulate the queue with a URL and immediately set it as visited to simulate quick depletion
+    await crawler.urls_to_visit.put("https://example.com/page")
+    crawler.visited_urls.add("https://example.com/page")
+
+    # Mock the worker to immediately mark the queue task as done
+    async def mock_worker(session):
+        while True:
+            try:
+                url = await crawler.urls_to_visit.get()
+                crawler.urls_to_visit.task_done()
+                break  # Break after processing one URL to prevent hanging
+            except asyncio.CancelledError:
+                break  # Ensure workers stop on cancellation
+
+    # Replace the original worker with the mock
+    crawler.worker = mock_worker
+
+    # Run the crawler
+    await crawler.crawl()
+
+    # Check that the queue is empty and has been joined
+    assert crawler.urls_to_visit.empty()
+    # This line asserts that all tasks are indeed completed
+    assert crawler.urls_to_visit._unfinished_tasks == 0
