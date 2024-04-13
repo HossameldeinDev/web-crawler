@@ -4,6 +4,7 @@ from urllib.parse import urljoin, urlparse
 
 import aiohttp
 from aiohttp import ClientTimeout
+from bs4 import BeautifulSoup
 
 from crawler.utils import normalize_url
 
@@ -68,15 +69,13 @@ class AsyncWebCrawler:
                     await self.parse_links(session, url, await response.text())
                     return
             except Exception as e:
-                logging.warning(f"Attempt {attempt + 1} failed for {url}: {e}")
+                logging.warning(f"Attempt {attempt + 1} failed for {url} : {e}")
                 if attempt < retries - 1:
                     await asyncio.sleep(2**attempt)
                 else:
                     logging.error(f"Failed to fetch {url} after {retries} attempts")
 
     async def parse_links(self, session, base_url, html):
-        from bs4 import BeautifulSoup
-
         soup = BeautifulSoup(html, "html.parser")
         for link in soup.find_all("a", href=True):
             full_url = normalize_url(urljoin(base_url, link["href"]))
