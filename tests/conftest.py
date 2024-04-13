@@ -59,14 +59,13 @@ def mock_context_manager_factory():
 
     return _factory
 
-    # Mock the worker to immediately mark the queue task as done
 
-
+# Mock the worker to immediately mark the queue task as done
 @pytest.fixture
 async def mock_worker(crawler):
     while True:
         try:
-            url = await crawler.urls_to_visit.get()
+            await crawler.urls_to_visit.get()
             crawler.urls_to_visit.task_done()
             break  # Break after processing one URL to prevent hanging
         except asyncio.CancelledError:
