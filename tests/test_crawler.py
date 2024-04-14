@@ -2,7 +2,7 @@ from typing import Any, Callable
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aiohttp import ClientSession
+from aiohttp import ClientConnectionError, ClientResponseError, ClientSession
 
 from crawler.crawler import AsyncWebCrawler
 
@@ -60,9 +60,6 @@ async def test_fetch_non_html_content(
                 )
 
 
-from aiohttp import ClientConnectionError
-
-
 @pytest.mark.asyncio
 async def test_fetch_with_network_errors_and_retries(
     crawler: AsyncWebCrawler,
@@ -85,9 +82,6 @@ async def test_fetch_with_network_errors_and_retries(
                 assert mock_log_error.call_count == 1
                 # Sleep should be called twice between the retries
                 assert mock_sleep.await_count == 2
-
-
-from aiohttp import ClientResponseError
 
 
 @pytest.mark.asyncio
@@ -140,9 +134,6 @@ async def test_fetch_unhandled_exception(
                 assert mock_log_error.call_count == 1
 
 
-from aiohttp import ClientResponseError
-
-
 @pytest.mark.asyncio
 async def test_fetch_client_error_non_403(
     crawler: AsyncWebCrawler,
@@ -172,7 +163,7 @@ async def test_fetch_client_error_non_403(
 
 
 @pytest.mark.asyncio
-async def test_crawl_execution(crawler: AsyncWebCrawler, mock_worker: Callable):
+async def test_crawl_execution(crawler: AsyncWebCrawler, mock_worker: Callable) -> None:
     # Prepopulate the queue with a URL and immediately set it as visited to simulate quick depletion
     await crawler.urls_to_visit.put("https://example.com/page")
     crawler.visited_urls.add("https://example.com/page")
