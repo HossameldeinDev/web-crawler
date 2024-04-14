@@ -4,7 +4,12 @@ from typing import List
 from urllib.parse import urlparse
 
 import aiohttp
-from aiohttp import ClientTimeout
+from aiohttp import (
+    ClientConnectionError,
+    ClientOSError,
+    ClientResponseError,
+    ClientTimeout,
+)
 
 from crawler.utils import normalize_url, parse_links
 
@@ -64,12 +69,23 @@ class AsyncWebCrawler:
                     else:
                         logging.info(f"Skipping non-HTML content: {url}")
                         return
-            except Exception as e:
+            except ClientResponseError as e:
+                if e.status == 404:
+                    logging.warning(f"URL not found: {url}")
+                else:
+                    logging.warning(f"Client error {e.status} for {url}: {e.message}")
+                break  # No retry for client errors
+            except (ClientConnectionError, ClientOSError, asyncio.TimeoutError) as e:
                 logging.warning(f"Attempt {attempt + 1} failed for {url}: {e}")
                 if attempt < retries - 1:
                     await asyncio.sleep(2**attempt)  # Exponential back-off
                 else:
-                    logging.error(f"Failed to fetch {url} after {retries} attempts")
+                    logging.error(
+                        f"Failed to fetch {url} after {retries} attempts due to connection error",
+                    )
+            except Exception as e:
+                logging.error(f"Unhandled exception for {url}: {e}")
+                break  # Break on other unhandled exceptions
 
     async def enqueue_urls(self, links: List[str]) -> None:
         for link in links:
