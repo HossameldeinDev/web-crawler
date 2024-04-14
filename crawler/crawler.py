@@ -8,11 +8,6 @@ from bs4 import BeautifulSoup
 
 from crawler.utils import normalize_url
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
-
 
 class AsyncWebCrawler:
     def __init__(self, base_url, concurrency=10):
@@ -77,8 +72,10 @@ class AsyncWebCrawler:
 
     async def parse_links(self, session, base_url, html):
         soup = BeautifulSoup(html, "html.parser")
+        logging.info(f"List of Urls in: {base_url}")
         for link in soup.find_all("a", href=True):
             full_url = normalize_url(urljoin(base_url, link["href"]))
+            logging.info(f"----: {full_url}")
             if urlparse(full_url).netloc.lower() == self.base_domain:
                 async with self.lock:  # Prevent adding duplicates concurrently
                     if full_url not in self.visited_urls:
