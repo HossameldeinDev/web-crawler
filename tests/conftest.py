@@ -1,4 +1,5 @@
 import asyncio
+from typing import Any, Callable
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -7,12 +8,12 @@ from crawler.crawler import AsyncWebCrawler
 
 
 @pytest.fixture
-def crawler():
+def crawler() -> AsyncWebCrawler:
     return AsyncWebCrawler("https://example.com", concurrency=5)
 
 
 @pytest.fixture
-def mock_html_content():
+def mock_html_content() -> str:
     return """
         <html>
             <body>
@@ -25,7 +26,7 @@ def mock_html_content():
 
 
 @pytest.fixture
-def mock_html_response(mock_html_content):
+def mock_html_response(mock_html_content: str) -> AsyncMock:
     response = AsyncMock()
     response.raise_for_status = AsyncMock()
     response.headers = {"Content-Type": "text/html; charset=utf-8"}
@@ -34,7 +35,7 @@ def mock_html_response(mock_html_content):
 
 
 @pytest.fixture
-def mock_non_html_response():
+def mock_non_html_response() -> AsyncMock:
     response = AsyncMock()
     response.raise_for_status = AsyncMock()
     response.headers = {"Content-Type": "application/json"}
@@ -43,8 +44,8 @@ def mock_non_html_response():
 
 
 @pytest.fixture
-def mock_context_manager_factory():
-    def _factory(mock_response=None, side_effect=None):
+def mock_context_manager_factory() -> Callable[[Any, Any], MagicMock]:
+    def _factory(mock_response: AsyncMock = None, side_effect: AsyncMock = None):
         # Create a context manager mock that uses the provided mock_response or side_effect
         context_manager = MagicMock()
         if side_effect:
@@ -62,7 +63,7 @@ def mock_context_manager_factory():
 
 # Mock the worker to immediately mark the queue task as done
 @pytest.fixture
-async def mock_worker(crawler):
+async def mock_worker(crawler: AsyncWebCrawler) -> None:
     while True:
         try:
             await crawler.urls_to_visit.get()

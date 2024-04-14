@@ -1,10 +1,11 @@
 import logging
+from typing import List
 from urllib.parse import urljoin, urlparse, urlunparse
 
 from bs4 import BeautifulSoup
 
 
-def normalize_url(url):
+def normalize_url(url: str) -> str:
     parsed_url = urlparse(url)
     scheme = "https"
     netloc = parsed_url.netloc.lower()
@@ -14,7 +15,7 @@ def normalize_url(url):
     return normalized_url
 
 
-async def parse_links(full_url, html):
+async def parse_links(full_url: str, html: str) -> List[str]:
     soup = BeautifulSoup(html, "html.parser")
     found_urls = [
         normalize_url(urljoin(full_url, link["href"]))

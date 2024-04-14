@@ -1,10 +1,13 @@
-from unittest.mock import AsyncMock, patch
+from typing import Any, Callable
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from aiohttp import ClientSession
 
+from crawler.crawler import AsyncWebCrawler
 
-def test_crawler_initialization(crawler):
+
+def test_crawler_initialization(crawler: AsyncWebCrawler) -> None:
     assert crawler.base_url == "https://example.com/"
     assert crawler.base_domain == "example.com"
     assert crawler.concurrency == 5
@@ -13,10 +16,10 @@ def test_crawler_initialization(crawler):
 
 @pytest.mark.asyncio
 async def test_fetch_html_content(
-    crawler,
-    mock_html_response,
-    mock_context_manager_factory,
-):
+    crawler: AsyncWebCrawler,
+    mock_html_response: str,
+    mock_context_manager_factory: Callable[[Any, Any], MagicMock],
+) -> None:
     # Use the factory to create a context manager with the mock HTML response
     mock_context_manager = mock_context_manager_factory(
         mock_response=mock_html_response,
@@ -40,10 +43,10 @@ async def test_fetch_html_content(
 
 @pytest.mark.asyncio
 async def test_fetch_non_html_content(
-    crawler,
-    mock_non_html_response,
-    mock_context_manager_factory,
-):
+    crawler: AsyncWebCrawler,
+    mock_non_html_response: str,
+    mock_context_manager_factory: Callable[[Any, Any], MagicMock],
+) -> None:
     mock_context_manager = mock_context_manager_factory(
         mock_response=mock_non_html_response,
     )
@@ -59,9 +62,9 @@ async def test_fetch_non_html_content(
 
 @pytest.mark.asyncio
 async def test_fetch_with_network_errors_and_retries(
-    crawler,
-    mock_context_manager_factory,
-):
+    crawler: AsyncWebCrawler,
+    mock_context_manager_factory: Callable[[Any, Any], MagicMock],
+) -> None:
     mock_context_manager = mock_context_manager_factory(
         side_effect=Exception("Connection error"),
     )
@@ -77,7 +80,7 @@ async def test_fetch_with_network_errors_and_retries(
 
 
 @pytest.mark.asyncio
-async def test_crawl_execution(crawler, mock_worker):
+async def test_crawl_execution(crawler: AsyncWebCrawler, mock_worker: Callable):
     # Prepopulate the queue with a URL and immediately set it as visited to simulate quick depletion
     await crawler.urls_to_visit.put("https://example.com/page")
     crawler.visited_urls.add("https://example.com/page")

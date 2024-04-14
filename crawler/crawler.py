@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from typing import List
 from urllib.parse import urlparse
 
 import aiohttp
@@ -9,7 +10,7 @@ from crawler.utils import normalize_url, parse_links
 
 
 class AsyncWebCrawler:
-    def __init__(self, base_url, concurrency=10):
+    def __init__(self, base_url: str, concurrency: int) -> None:
         self.base_url = normalize_url(base_url)
         self.base_domain = urlparse(base_url).netloc.lower()
         self.visited_urls = set()
@@ -18,7 +19,7 @@ class AsyncWebCrawler:
         self.concurrency = concurrency
         self.lock = asyncio.Lock()  # Lock for visited_urls access
 
-    async def crawl(self):
+    async def crawl(self) -> None:
         async with aiohttp.ClientSession() as session:
             workers = [
                 asyncio.create_task(self.worker(session))
@@ -29,7 +30,7 @@ class AsyncWebCrawler:
                 worker.cancel()
             await asyncio.gather(*workers, return_exceptions=True)
 
-    async def worker(self, session):
+    async def worker(self, session: aiohttp.ClientSession) -> None:
         while True:
             try:
                 url = await self.urls_to_visit.get()
@@ -41,7 +42,7 @@ class AsyncWebCrawler:
             finally:
                 self.urls_to_visit.task_done()
 
-    async def fetch(self, session, url, retries=3):
+    async def fetch(self, session: aiohttp.ClientSession, url: str, retries=3) -> None:
         for attempt in range(retries):
             try:
                 timeout = ClientTimeout(total=10)
@@ -70,7 +71,7 @@ class AsyncWebCrawler:
                 else:
                     logging.error(f"Failed to fetch {url} after {retries} attempts")
 
-    async def enqueue_urls(self, links):
+    async def enqueue_urls(self, links: List[str]) -> None:
         for link in links:
             if urlparse(link).netloc.lower() == self.base_domain:
                 async with self.lock:  # Prevent adding duplicates concurrently
