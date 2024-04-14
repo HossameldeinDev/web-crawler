@@ -1,12 +1,11 @@
 import asyncio
 import logging
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse
 
 import aiohttp
 from aiohttp import ClientTimeout
-from bs4 import BeautifulSoup
 
-from crawler.utils import normalize_url
+from crawler.utils import normalize_url, parse_links
 
 
 class AsyncWebCrawler:
@@ -54,29 +53,26 @@ class AsyncWebCrawler:
                     timeout=timeout,
                 ) as response:
                     response.raise_for_status()
-                    if (
-                        "text/html"
-                        not in response.headers.get("Content-Type", "").lower()
-                    ):
+                    content_type = response.headers.get("Content-Type", "").lower()
+                    if "text/html" in content_type:
+                        logging.info(f"Visiting: {url}")
+                        html = await response.text()
+                        links = await parse_links(url, html)
+                        await self.enqueue_urls(links)
+                        return
+                    else:
                         logging.info(f"Skipping non-HTML content: {url}")
                         return
-                    logging.info(f"Visiting: {url}")
-                    await self.parse_links(session, url, await response.text())
-                    return
             except Exception as e:
-                logging.warning(f"Attempt {attempt + 1} failed for {url} : {e}")
+                logging.warning(f"Attempt {attempt + 1} failed for {url}: {e}")
                 if attempt < retries - 1:
-                    await asyncio.sleep(2**attempt)
+                    await asyncio.sleep(2**attempt)  # Exponential back-off
                 else:
                     logging.error(f"Failed to fetch {url} after {retries} attempts")
 
-    async def parse_links(self, session, base_url, html):
-        soup = BeautifulSoup(html, "html.parser")
-        logging.info(f"List of Urls in: {base_url}")
-        for link in soup.find_all("a", href=True):
-            full_url = normalize_url(urljoin(base_url, link["href"]))
-            logging.info(f"----: {full_url}")
-            if urlparse(full_url).netloc.lower() == self.base_domain:
+    async def enqueue_urls(self, links):
+        for link in links:
+            if urlparse(link).netloc.lower() == self.base_domain:
                 async with self.lock:  # Prevent adding duplicates concurrently
-                    if full_url not in self.visited_urls:
-                        await self.urls_to_visit.put(full_url)
+                    if link not in self.visited_urls:
+                        await self.urls_to_visit.put(link)

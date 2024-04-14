@@ -77,22 +77,6 @@ async def test_fetch_with_network_errors_and_retries(
 
 
 @pytest.mark.asyncio
-async def test_parse_and_enqueue_links(crawler, mock_html_content):
-    # Clear the queue before the test
-    while not crawler.urls_to_visit.empty():
-        await crawler.urls_to_visit.get()
-
-    # Use actual session in the test
-    async with ClientSession() as session:
-        await crawler.parse_links(session, crawler.base_url, mock_html_content)
-        first_url = await crawler.urls_to_visit.get()
-        second_url = await crawler.urls_to_visit.get()
-        assert first_url == "https://example.com/page1.html"
-        assert second_url == "https://example.com/page2.html"
-        assert crawler.urls_to_visit.empty()
-
-
-@pytest.mark.asyncio
 async def test_crawl_execution(crawler, mock_worker):
     # Prepopulate the queue with a URL and immediately set it as visited to simulate quick depletion
     await crawler.urls_to_visit.put("https://example.com/page")

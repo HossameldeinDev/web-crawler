@@ -1,4 +1,7 @@
-from urllib.parse import urlparse, urlunparse
+import logging
+from urllib.parse import urljoin, urlparse, urlunparse
+
+from bs4 import BeautifulSoup
 
 
 def normalize_url(url):
@@ -9,3 +12,13 @@ def normalize_url(url):
     # urlunparse parameters are scheme, netloc, path, params, query, fragment and we intentionally remove the last three
     normalized_url = urlunparse((scheme, netloc, path, "", "", ""))
     return normalized_url
+
+
+async def parse_links(full_url, html):
+    soup = BeautifulSoup(html, "html.parser")
+    found_urls = [
+        normalize_url(urljoin(full_url, link["href"]))
+        for link in soup.find_all("a", href=True)
+    ]
+    logging.info(f"URLs found in: {full_url} : {found_urls}")
+    return found_urls
