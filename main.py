@@ -13,11 +13,11 @@ if __name__ == "__main__":
     setup_logging(url)
     try:
         concurrency = int(
-            input("Enter the number of concurrent jobs (default 25): ") or 25,
+            input("Enter the number of concurrent jobs (default 5): ") or 5,
         )
     except ValueError:
-        logging.error("Invalid input for concurrency, using default of 25.")
-        concurrency = 25
+        logging.error("Invalid input for concurrency, using default of 5.")
+        concurrency = 5
 
     logging.info(f"Starting crawl at {url} with {concurrency} concurrent jobs.")
 
